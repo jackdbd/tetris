@@ -1,12 +1,10 @@
-# Tetris 
+# Tetris
 
-A simple tetris clone written in
-[zig programming language](https://github.com/andrewrk/zig).
+A simple tetris clone written in [zig programming language](https://github.com/andrewrk/zig).
 
-[YouTube Demo](https://www.youtube.com/watch?v=AiintPutWrE).
+[Vimeo Demo](https://vimeo.com/481429586).
 
-
-![](http://i.imgur.com/umuNndz.png)
+![demo screenshot](http://i.imgur.com/umuNndz.png)
 
 [Windows 64-bit build](http://superjoe.s3.amazonaws.com/temp/tetris.zip)
 
@@ -24,10 +22,10 @@ A simple tetris clone written in
 
  * [Zig compiler](https://github.com/andrewrk/zig) - use the debug build.
  * [libepoxy](https://github.com/anholt/libepoxy)
- * [GLFW](http://www.glfw.org/)
+ * [GLFW](http://www.glfw.org/) (used via the wrapper library [glfw3.zig](https://github.com/Iridescence-Technologies/zglfw))
 
 ## Building and Running
 
-```
+```sh
 zig build play
 ```
