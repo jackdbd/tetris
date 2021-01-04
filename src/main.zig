@@ -1,11 +1,13 @@
 usingnamespace @import("math3d.zig");
 usingnamespace @import("tetris.zig");
+// const tetris = @import("tetris.zig");
 
 const std = @import("std");
 const panic = std.debug.panic;
 const assert = std.debug.assert;
 const bufPrint = std.fmt.bufPrint;
 const c = @import("c.zig");
+const glfw = @import("vendor/zglfw/src/glfw3.zig");
 const debug_gl = @import("debug_gl.zig");
 const AllShaders = @import("all_shaders.zig").AllShaders;
 const StaticGeometry = @import("static_geometry.zig").StaticGeometry;
@@ -13,7 +15,6 @@ const pieces = @import("pieces.zig");
 const Piece = pieces.Piece;
 const Spritesheet = @import("spritesheet.zig").Spritesheet;
 
-var window: *c.GLFWwindow = undefined;
 var all_shaders: AllShaders = undefined;
 var static_geometry: StaticGeometry = undefined;
 var font: Spritesheet = undefined;
@@ -22,21 +23,22 @@ fn errorCallback(err: c_int, description: [*c]const u8) callconv(.C) void {
     panic("Error: {}\n", .{@as([*:0]const u8, description)});
 }
 
-fn keyCallback(win: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    if (action != c.GLFW_PRESS) return;
-    const t = @ptrCast(*Tetris, @alignCast(@alignOf(Tetris), c.glfwGetWindowUserPointer(win).?));
+fn keyCallback(win: *glfw.Window, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
+    if (action != @enumToInt(glfw.KeyState.Press)) return;
+    const t = @ptrCast(*Tetris, @alignCast(@alignOf(Tetris), glfw.getWindowUserPointer(win).?));
 
-    switch (key) {
-        c.GLFW_KEY_ESCAPE => c.glfwSetWindowShouldClose(win, c.GL_TRUE),
-        c.GLFW_KEY_SPACE => userDropCurPiece(t),
-        c.GLFW_KEY_DOWN => userCurPieceFall(t),
-        c.GLFW_KEY_LEFT => userMoveCurPiece(t, -1),
-        c.GLFW_KEY_RIGHT => userMoveCurPiece(t, 1),
-        c.GLFW_KEY_UP => userRotateCurPiece(t, 1),
-        c.GLFW_KEY_LEFT_SHIFT, c.GLFW_KEY_RIGHT_SHIFT => userRotateCurPiece(t, -1),
-        c.GLFW_KEY_R => restartGame(t),
-        c.GLFW_KEY_P => userTogglePause(t),
-        c.GLFW_KEY_LEFT_CONTROL, c.GLFW_KEY_RIGHT_CONTROL => userSetHoldPiece(t),
+    const key_enum = @intToEnum(glfw.Key, key);
+    switch (key_enum) {
+        glfw.Key.Escape => glfw.setWindowShouldClose(win, true),
+        glfw.Key.Space => userDropCurPiece(t),
+        glfw.Key.Down => userCurPieceFall(t),
+        glfw.Key.Left => userMoveCurPiece(t, -1),
+        glfw.Key.Right => userMoveCurPiece(t, 1),
+        glfw.Key.Up => userRotateCurPiece(t, 1),
+        glfw.Key.LeftShift, glfw.Key.RightShift => userRotateCurPiece(t, -1),
+        glfw.Key.R => restartGame(t),
+        glfw.Key.P => userTogglePause(t),
+        glfw.Key.LeftControl, glfw.Key.RightControl => userSetHoldPiece(t),
         else => {},
     }
 }
@@ -46,30 +48,26 @@ var tetris_state: Tetris = undefined;
 const font_png = @embedFile("../assets/font.png");
 
 pub fn main() !void {
-    _ = c.glfwSetErrorCallback(errorCallback);
+    _ = glfw.setErrorCallback(errorCallback);
 
-    if (c.glfwInit() == c.GL_FALSE) {
-        panic("GLFW init failure\n", .{});
-    }
-    defer c.glfwTerminate();
+    try glfw.init();
+    defer glfw.terminate();
 
-    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
-    c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 2);
-    c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, c.GL_TRUE);
-    c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, debug_gl.is_on);
-    c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
-    c.glfwWindowHint(c.GLFW_DEPTH_BITS, 0);
-    c.glfwWindowHint(c.GLFW_STENCIL_BITS, 8);
-    c.glfwWindowHint(c.GLFW_RESIZABLE, c.GL_FALSE);
+    glfw.windowHint(glfw.WindowHint.ContextVersionMajor, 3);
+    glfw.windowHint(glfw.WindowHint.ContextVersionMinor, 2);
+    glfw.windowHint(glfw.WindowHint.OpenGLForwardCompat, @as(c_int, c.GL_TRUE));
+    glfw.windowHint(glfw.WindowHint.OpenGLDebugContext, debug_gl.is_on);
+    glfw.windowHint(glfw.WindowHint.OpenGLProfile, @enumToInt(glfw.GLProfileAttribute.OpenglCoreProfile));
+    glfw.windowHint(glfw.WindowHint.DepthBits, 0);
+    glfw.windowHint(glfw.WindowHint.StencilBits, 8);
+    glfw.windowHint(glfw.WindowHint.Resizable, @as(c_int, c.GL_FALSE));
 
-    window = c.glfwCreateWindow(window_width, window_height, "Tetris", null, null) orelse {
-        panic("unable to create window\n", .{});
-    };
-    defer c.glfwDestroyWindow(window);
+    var window = try glfw.createWindow(window_width, window_height, "Tetris", null, null);
+    defer glfw.destroyWindow(window);
 
-    _ = c.glfwSetKeyCallback(window, keyCallback);
-    c.glfwMakeContextCurrent(window);
-    c.glfwSwapInterval(1);
+    _ = glfw.setKeyCallback(window, keyCallback);
+    glfw.makeContextCurrent(window);
+    glfw.swapInterval(1);
 
     // create and bind exactly one vertex array per context and use
     // glVertexAttribPointer etc every frame.
@@ -79,7 +77,7 @@ pub fn main() !void {
     defer c.glDeleteVertexArrays(1, &vertex_array_object);
 
     const t = &tetris_state;
-    c.glfwGetFramebufferSize(window, &t.framebuffer_width, &t.framebuffer_height);
+    glfw.getFramebufferSize(window, &t.framebuffer_width, &t.framebuffer_height);
     assert(t.framebuffer_width >= window_width);
     assert(t.framebuffer_height >= window_height);
 
@@ -111,26 +109,26 @@ pub fn main() !void {
     c.glPixelStorei(c.GL_UNPACK_ALIGNMENT, 1);
 
     c.glViewport(0, 0, t.framebuffer_width, t.framebuffer_height);
-    c.glfwSetWindowUserPointer(window, @ptrCast(*c_void, t));
+    glfw.setWindowUserPointer(window, @ptrCast(*c_void, t));
 
     debug_gl.assertNoError();
 
-    const start_time = c.glfwGetTime();
+    const start_time = glfw.getTime();
     var prev_time = start_time;
 
-    while (c.glfwWindowShouldClose(window) == c.GL_FALSE) {
+    while (!glfw.windowShouldClose(window)) {
         c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT | c.GL_STENCIL_BUFFER_BIT);
 
-        const now_time = c.glfwGetTime();
+        const now_time = glfw.getTime();
         const elapsed = now_time - prev_time;
         prev_time = now_time;
 
         nextFrame(t, elapsed);
 
         draw(t, @This());
-        c.glfwSwapBuffers(window);
+        glfw.swapBuffers(window);
 
-        c.glfwPollEvents();
+        glfw.pollEvents();
     }
 
     debug_gl.assertNoError();
